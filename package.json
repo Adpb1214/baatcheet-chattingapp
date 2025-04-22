@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/auth-helpers-shared": "^0.7.0",
     "@supabase/supabase-js": "^2.49.4",
     "next": "15.3.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.5.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
+import { showCustomToast } from "@/components/customToast";
 
 const LoginContent = () => {
   const [email, setEmail] = useState("");
@@ -25,16 +26,23 @@ const LoginContent = () => {
     if (error) {
       console.error("Login error:", error.message);
       setError(error.message);
+      showCustomToast("Login failed. Maybe double check your email? 📧");
+
     } else {
       const userRole = data.user?.user_metadata?.role;
       if (userRole === "agent") {
         router.push("/agent-dashboard");
+        showCustomToast("Welcome back, yaar! You're in 😎");
       } else if (userRole === "user") {
         router.push("/user-dashboard");
+        showCustomToast("Welcome back, yaar! You're in 😎");
       } else {
         console.error("No role found for user");
         setError("No role assigned to this user.");
+        showCustomToast("No role assigned to this user. Please contact support.");
       }
+    
+
     }
   };
 
@@ -60,7 +68,7 @@ const LoginContent = () => {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+            className="w-full text-pink-400 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
           />
 
           <input
@@ -68,7 +76,7 @@ const LoginContent = () => {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+            className="w-full text-pink-400 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
           />
 
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}

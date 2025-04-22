@@ -4,6 +4,7 @@ import { useSession } from '@/hooks/useSession';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { showCustomToast } from './customToast';
 
 export function Header() {
   const session = useSession();
@@ -12,6 +13,8 @@ export function Header() {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    showCustomToast("Signed out safely. Toodles! 🛡️");
+
     router.push("/");
   };
 

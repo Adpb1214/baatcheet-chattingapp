@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ChatBubbleOvalLeftEllipsisIcon } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
+import { showCustomToast } from "@/components/customToast";
 
 const RegisterContent = () => {
   const [email, setEmail] = useState("");
@@ -29,8 +30,12 @@ const RegisterContent = () => {
     if (error) {
       console.error(error.message);
       setError(error.message);
+      showCustomToast("Hmm... something went wrong while signing up 😓");
+
     } else {
       console.log("Signup success:", data);
+      showCustomToast("Ayo! Account created. Welcome to the crew 🎉");
+
       router.push("/login");
     }
   };
@@ -62,7 +67,7 @@ const RegisterContent = () => {
             placeholder="Email (any placeholder)"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+            className="w-full text-pink-400 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
           />
 
           <input
@@ -70,7 +75,7 @@ const RegisterContent = () => {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+            className="w-full text-pink-400 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
           />
 
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}

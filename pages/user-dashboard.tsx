@@ -11,189 +11,220 @@ interface Message {
   created_at: string;
 }
 
+// ...imports remain the same
+
 const UserDashboardContent = () => {
-  const session = useSession();
-  const userId = session?.user?.id ?? ""; 
-
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-  const messageEndRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Fetch messages
-  useEffect(() => {
-    if (!userId || !isClient) return;
-
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true });
-
-      if (data) setMessages(data);
-      if (error) console.error("Error fetching messages:", error);
-    };
-
-    fetchMessages();
-
-    // Real-time subscription
-    const channel = supabase
-      .channel(`messages:user:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as Message;
-          setMessages((prev) => [...prev, newMsg]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, isClient]);
-
-  // Scroll to bottom on new message
-  useEffect(() => {
-    if (isClient) {
-      messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isClient]);
-
-  // Send message
-  const handleSendMessage = async () => {
-    const content = newMessage.trim();
-    if (!content || !userId) return;
-
-    const { error } = await supabase.from("messages").insert([
-      {
-        sender_id: userId,
-        user_id: userId,
-        content,
-      },
-    ]);
-
-    if (!error) {
-      setNewMessage("");
-
-      // Simulate chatbot reply after a short delay
-      setIsTyping(true);
-      setTimeout(() => {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
+    const session = useSession();
+    const userId = session?.user?.id ?? "";
+  
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [newMessage, setNewMessage] = useState("");
+    const [isTyping, setIsTyping] = useState(false);
+    const [isClient, setIsClient] = useState(false);
+    const [isSending, setIsSending] = useState(false);
+    const messageEndRef = useRef<HTMLDivElement | null>(null);
+  
+    useEffect(() => {
+      setIsClient(true);
+    }, []);
+  
+    useEffect(() => {
+      if (!userId || !isClient) return;
+  
+      const fetchMessages = async () => {
+        const { data, error } = await supabase
+          .from("messages")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: true });
+  
+        if (data) setMessages(data);
+        if (error) console.error("Error fetching messages:", error);
+      };
+  
+      fetchMessages();
+  
+      const channel = supabase
+        .channel(`messages:user:${userId}`)
+        .on(
+          "postgres_changes",
           {
-            id: crypto.randomUUID(),
-            sender_id: "chatbot", // Chatbot sender ID
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const newMsg = payload.new as Message;
+            setMessages((prev) => [...prev, newMsg]);
+          }
+        )
+        .subscribe();
+  
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [userId, isClient]);
+  
+    useEffect(() => {
+      if (isClient) {
+        messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    }, [messages, isClient]);
+  
+    const handleSendMessage = async () => {
+      const content = newMessage.trim();
+      if (!content || !userId) return;
+  
+      setIsSending(true);
+  
+      const { error } = await supabase.from("messages").insert([
+        {
+          sender_id: userId,
+          user_id: userId,
+          content,
+        },
+      ]);
+  
+      if (!error) {
+        setNewMessage("");
+  
+        if (messages.length === 0) {
+          setIsTyping(true);
+  
+          const botMessage = {
+            sender_id: "f5edd70b-3cab-4214-8bd1-ed0c6bb95126",
             user_id: userId,
             content: "Hi there! How can I assist you today?",
             created_at: new Date().toISOString(),
-          },
-        ]);
-      }, 1500);
-    } else {
-      console.error("Failed to send message:", error);
+          };
+  
+          setTimeout(async () => {
+            setIsTyping(false);
+  
+            const { error: botError } = await supabase
+              .from("messages")
+              .insert([botMessage]);
+            if (botError) {
+              console.error("Bot message failed to save:", botError);
+            }
+          }, 1500);
+        }
+      } else {
+        console.error("Failed to send message:", error);
+      }
+  
+      setIsSending(false);
+    };
+  
+    if (!isClient) {
+      return (
+        <div className="p-4 text-center text-lg text-gray-500">
+          Loading dashboard...
+        </div>
+      );
     }
-  };
-
-  if (!isClient) {
-    return <div className="p-4 text-center text-lg text-gray-500">Loading dashboard...</div>;
-  }
-
-  return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-300 bg-blue-100">
-        <h2 className="text-lg font-semibold text-blue-700">Talk to us, we are listening 👂</h2>
-      </div>
-    
-      {/* Messages */}
-      <div className="flex-1 overflow-auto p-4 flex flex-col space-y-2">
-        {messages.length === 0 ? (
-          <p className="text-center text-gray-500 my-auto">We are just a message away 💬</p>
-        ) : (
-          messages.map((msg) => {
-            const isUser = msg.sender_id === userId;
-            const isBot = msg.sender_id === "chatbot";
-            
-            return (
-              <div
-                key={msg.id}
-                className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-              >
+  
+    return (
+      <div className="flex flex-col h-screen bg-gray-50">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-300 bg-gradient-to-r from-blue-200 via-white to-purple-200">
+          <h2 className="text-lg font-semibold text-blue-700 text-center">
+            Talk to us, we are listening 👂
+          </h2>
+        </div>
+  
+        {/* Messages Area */}
+        <div className="flex-1 overflow-auto px-4 py-6 space-y-3">
+          {messages.length === 0 ? (
+            <p className="text-center text-gray-500 my-auto">
+              We are just a message away 💬
+            </p>
+          ) : (
+            messages.map((msg) => {
+              const isUser = msg.sender_id === userId;
+              const isBot = msg.sender_id === "chatbot";
+  
+              return (
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    isUser
-                      ? "bg-blue-500 text-white rounded-tr-none"
-                      : isBot
-                      ? "bg-purple-100 text-purple-800 rounded-tl-none"
-                      : "bg-green-100 text-green-800 rounded-tl-none"
+                  key={msg.id}
+                  className={`flex ${
+                    isUser ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {isBot && (
-                    <div className="flex items-center mb-1">
-                     
-                      <span className="text-xs font-semibold">Dil Se Listener</span>
-                    </div>
-                  )}
-                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                  <div
+                    className={`max-w-[75%] p-4 rounded-xl shadow ${
+                      isUser
+                        ? "bg-blue-600 text-white rounded-tr-sm"
+                        : isBot
+                        ? "bg-purple-100 text-purple-900 rounded-tl-sm"
+                        : "bg-green-100 text-green-800 rounded-tl-sm"
+                    }`}
+                  >
+                    {isBot && (
+                      <p className="text-xs font-semibold mb-1 text-purple-700">
+                        Dil Se Listener
+                      </p>
+                    )}
+                    <p className="text-sm leading-relaxed whitespace-pre-line break-words">
+                      {msg.content}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="max-w-[80%] bg-purple-100 text-purple-800 rounded-lg rounded-tl-none p-3">
-              <div className="flex items-center">
+              );
+            })
+          )}
+  
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="bg-purple-100 text-purple-800 p-4 rounded-xl rounded-tl-sm shadow max-w-[75%]">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce"></div>
-                  <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
+                  <div
+                    className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
+                    style={{ animationDelay: "0.4s" }}
+                  ></div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-        <div ref={messageEndRef} />
+          )}
+  
+          <div ref={messageEndRef} />
+        </div>
+  
+        {/* Input Area */}
+        <div className="p-4 border-t border-gray-300 bg-white shadow-inner flex gap-2">
+          <input
+            type="text"
+            placeholder="Wanna share something... 😊"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+            className="flex-1 p-3 border border-gray-300 rounded-full shadow-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!newMessage.trim() || isSending}
+            className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+              isSending
+                ? "bg-blue-300 cursor-wait"
+                : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+            }`}
+          >
+            {isSending ? "Sending..." : "Send 🚀"}
+          </button>
+        </div>
       </div>
-    
-      {/* Input */}
-      <div className="flex items-center gap-2 p-4 border-t border-gray-300 bg-gray-100">
-        <input
-          type="text"
-          placeholder="Type a message... 😊"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          className="flex-1 p-3 border rounded-lg text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          onClick={handleSendMessage}
-          disabled={!newMessage.trim()}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Send
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const UserDashboard = dynamic(() => Promise.resolve(UserDashboardContent), {
-  ssr: false,
-});
-
-export default UserDashboard;
+    );
+  };
+  
+  const UserDashboard = dynamic(() => Promise.resolve(UserDashboardContent), {
+    ssr: false,
+  });
+  
+  export default UserDashboard;
+  
