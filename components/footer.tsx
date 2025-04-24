@@ -6,7 +6,7 @@ const Footer = () => {
     <footer className="bg-white/80 backdrop-blur-sm py-6 text-center">
         <div className="container mx-auto px-4">
           <p className="text-purple-500 font-medium">
-            Made with <span className="text-pink-500 animate-pulse">♥</span> by Akash in Kolkata
+            Made with <span className="text-pink-500 animate-pulse">♥</span>in Kolkata
           </p>
           <div className="flex justify-center space-x-2 mt-2">
             <span className="text-sm text-purple-400">🌸</span>
