@@ -11,13 +11,14 @@ interface Profile {
   email: string;
   role: string;
 }
-
 interface Message {
   id: string;
   user_id: string;
   sender_id: string;
   content: string;
   created_at: string;
+  seen?: boolean;
+  seen_at?: string;
 }
 
 const AgentDashboardContent = () => {
@@ -32,6 +33,7 @@ const AgentDashboardContent = () => {
   const [sending, setSending] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isUserTyping, setIsUserTyping] = useState(false);
 
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -97,6 +99,21 @@ const AgentDashboardContent = () => {
           setMessages((prev) => [...prev, newMsg]);
         }
       )
+      .on(
+        "postgres_changes", 
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `user_id=eq.${selectedUser.id}`,
+        },
+        (payload) => {
+          const updatedMsg = payload.new as Message;
+          setMessages((prev) => 
+            prev.map(msg => msg.id === updatedMsg.id ? updatedMsg : msg)
+          );
+        }
+      )
       .subscribe();
 
     // On mobile, close the sidebar when a user is selected
@@ -104,8 +121,26 @@ const AgentDashboardContent = () => {
       setSidebarOpen(false);
     }
 
+    // Subscribe to typing status changes for the selected user
+    const typingChannel = supabase
+      .channel(`typing-status:${selectedUser.id}`)
+      .on(
+        "postgres_changes",
+        { 
+          event: "UPDATE", 
+          schema: "public", 
+          table: "typing_status",
+          filter: `user_id=eq.${selectedUser.id}`
+        },
+        (payload) => {
+          setIsUserTyping(payload.new.is_typing);
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(typingChannel);
     };
   }, [selectedUser, isClient]);
 
@@ -114,6 +149,51 @@ const AgentDashboardContent = () => {
       messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isClient]);
+
+  // Mark agent messages as seen when the user sees them
+  useEffect(() => {
+    const markMessagesSeen = async () => {
+      if (!selectedUser || !agentId) return;
+
+      const unseen = messages.filter(
+        (msg) => !msg.seen && msg.sender_id === agentId
+      );
+      
+      if (unseen.length > 0) {
+        const { error } = await supabase
+          .from("messages")
+          .update({ seen: true, seen_at: new Date().toISOString() })
+          .in("id", unseen.map((m) => m.id));
+
+        if (error) console.error("Failed to update seen status:", error);
+      }
+    };
+
+    markMessagesSeen();
+  }, [messages, selectedUser, agentId]);
+
+  // Update typing status based on input changes
+  useEffect(() => {
+    if (!selectedUser || !agentId) return;
+    
+    const updateTyping = async () => {
+      await supabase
+        .from("typing_status")
+        .upsert({ user_id: agentId, is_typing: true });
+    };
+
+    const timer = setTimeout(() => {
+      supabase
+        .from("typing_status")
+        .upsert({ user_id: agentId, is_typing: false });
+    }, 2000);
+
+    if (newMessage.trim()) {
+      updateTyping();
+    }
+
+    return () => clearTimeout(timer);
+  }, [newMessage, selectedUser, agentId]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedUser || !agentId) return;
@@ -125,6 +205,7 @@ const AgentDashboardContent = () => {
         user_id: selectedUser.id,
         sender_id: agentId,
         content: newMessage.trim(),
+        seen: false,
       },
     ]);
 
@@ -220,7 +301,7 @@ const AgentDashboardContent = () => {
                         {getInitials(user.email)}
                       </div>
                       <div className="ml-3 text-left">
-                        <p className="font-medium  text-gray-600  truncate">{user.email || "User"}</p>
+                        <p className="font-medium text-gray-600 truncate">{user.email || "User"}</p>
                         <p className="text-xs text-gray-500">{user.role}</p>
                       </div>
                     </button>
@@ -257,8 +338,21 @@ const AgentDashboardContent = () => {
                 {getInitials(selectedUser.email)}
               </div>
               <div className="ml-3">
-                <h2 className="font-semibold  text-gray-600 ">{selectedUser.email || "User"}</h2>
-                <p className="text-xs text-gray-500">{selectedUser.role}</p>
+                <h2 className="font-semibold text-gray-600">{selectedUser.email || "User"}</h2>
+                <p className="text-xs text-gray-500">
+                  {isUserTyping ? (
+                    <span className="text-green-600 font-medium flex items-center">
+                      typing
+                      <span className="ml-1 flex space-x-1">
+                        <span className="w-1 h-1 bg-green-600 rounded-full animate-bounce"></span>
+                        <span className="w-1 h-1 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
+                        <span className="w-1 h-1 bg-green-600 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></span>
+                      </span>
+                    </span>
+                  ) : (
+                    selectedUser.role
+                  )}
+                </p>
               </div>
             </div>
           ) : (
@@ -326,6 +420,9 @@ const AgentDashboardContent = () => {
                             }`}
                           >
                             {formatMessageTime(msg.created_at)}
+                            {isAgent && msg.seen && (
+                              <span className="ml-2 text-blue-400">Seen ✓</span>
+                            )}
                           </div>
                         </div>
                         
@@ -338,6 +435,26 @@ const AgentDashboardContent = () => {
                     </div>
                   );
                 })}
+                {isUserTyping && (
+                  <div className="flex justify-start w-full mt-1">
+                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0 mr-2">
+                      {getInitials(selectedUser.email)}
+                    </div>
+                    <div className="bg-white text-gray-800 p-3 rounded-2xl rounded-tl-none border border-gray-200 shadow-sm max-w-xs">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div
+                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.4s" }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div ref={messageEndRef} />
               </>
             )}
@@ -408,7 +525,7 @@ const AgentDashboardContent = () => {
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div 
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-20"
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
           onClick={() => setSidebarOpen(false)}
         />
       )}
