@@ -2,6 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/hooks/useSession";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { 
+  MessageCircle, 
+  Heart, 
+  Send, 
+  Sparkles, 
+  Bot, 
+  User, 
+  Check, 
+  CheckCheck,
+  Smile,
+  Moon,
+  Star,
+  Zap,
+  ArrowDown
+} from "lucide-react";
 
 interface Message {
   id: string;
@@ -22,6 +40,7 @@ const UserDashboardContent = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [messageCount, setMessageCount] = useState(0);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -38,7 +57,10 @@ const UserDashboardContent = () => {
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
 
-      if (data) setMessages(data);
+      if (data) {
+        setMessages(data);
+        setMessageCount(data.length);
+      }
       if (error) console.error("Error fetching messages:", error);
     };
 
@@ -57,6 +79,7 @@ const UserDashboardContent = () => {
         (payload) => {
           const newMsg = payload.new as Message;
           setMessages((prev) => [...prev, newMsg]);
+          setMessageCount(prev => prev + 1);
         }
       )
       .subscribe();
@@ -155,7 +178,7 @@ const UserDashboardContent = () => {
         const botMessage = {
           sender_id: "f5edd70b-3cab-4214-8bd1-ed0c6bb95126",
           user_id: userId,
-          content: "Hi there! How can I assist you today?",
+          content: "Hi there! How can I assist you today? 😊",
           created_at: new Date().toISOString(),
         };
 
@@ -177,78 +200,152 @@ const UserDashboardContent = () => {
     setIsSending(false);
   };
 
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
   if (!isClient) {
     return (
-      <div className="p-4 text-center text-lg text-gray-500">
-        Loading dashboard...
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
+        <div className="flex items-center space-x-3 text-purple-600">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+          <span className="font-medium">Opening your safe space...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <div className="p-4 border-b border-gray-300 bg-gradient-to-r from-blue-200 via-white to-purple-200">
-        <h2 className="text-lg font-semibold text-blue-700 text-center">
-          Talk to us, we are listening 👂
-        </h2>
+    <div className="flex flex-col h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-0 left-0 w-full h-full" 
+             style={{
+               backgroundImage: `radial-gradient(circle at 25% 25%, rgba(236, 72, 153, 0.1) 0%, transparent 50%), 
+                                radial-gradient(circle at 75% 75%, rgba(147, 51, 234, 0.1) 0%, transparent 50%)`
+             }} />
       </div>
 
-      <div className="flex-1 overflow-auto px-4 py-6 space-y-3">
+      {/* Compact Header */}
+      <div className="relative z-10 px-6 py-4 bg-white/70 backdrop-blur-sm border-b border-purple-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center shadow-md">
+              <MessageCircle className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                BaatCheet
+              </h2>
+              <p className="text-xs text-gray-500 flex items-center space-x-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>Safe space for your thoughts</span>
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Badge variant="secondary" className="text-xs px-2 py-1 bg-purple-100 text-purple-700">
+              {messageCount} chats
+            </Badge>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div className="flex-1 overflow-auto px-4 py-4 space-y-3">
         {messages.length === 0 ? (
-          <p className="text-center text-gray-500 my-auto">
-            We are just a message away 💬
-          </p>
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center mb-4 shadow-lg">
+              <Heart className="h-8 w-8 text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">Welcome to your safe space</h3>
+            <p className="text-gray-500 text-sm mb-4 max-w-sm">
+              Share what's on your mind. We're here to listen without judgment 💫
+            </p>
+            <div className="flex space-x-2">
+              {['🌸', '💭', '✨'].map((emoji, i) => (
+                <span key={i} className="text-xl animate-bounce" style={{ animationDelay: `${i * 0.3}s` }}>
+                  {emoji}
+                </span>
+              ))}
+            </div>
+          </div>
         ) : (
-          messages.map((msg) => {
+          messages.map((msg, index) => {
             const isUser = msg.sender_id === userId;
-            const isBot = msg.sender_id === "chatbot";
+            const isBot = msg.sender_id === "f5edd70b-3cab-4214-8bd1-ed0c6bb95126" || msg.sender_id === "chatbot";
 
             return (
-              <div
-                key={msg.id}
-                className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[75%] p-4 rounded-xl shadow ${
+              <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"} mb-3`}>
+                <div className={`max-w-xs lg:max-w-md ${isUser ? "ml-12" : "mr-12"}`}>
+                  {/* Message bubble */}
+                  <div className={`relative px-4 py-3 rounded-2xl shadow-sm ${
                     isUser
-                      ? "bg-blue-600 text-white rounded-tr-sm"
+                      ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-br-md"
                       : isBot
-                      ? "bg-purple-100 text-purple-900 rounded-tl-sm"
-                      : "bg-green-100 text-green-800 rounded-tl-sm"
-                  }`}
-                >
-                  {isBot && (
-                    <p className="text-xs font-semibold mb-1 text-purple-700">
-                      Dil Se Listener
+                      ? "bg-white border border-purple-200 text-gray-800 rounded-bl-md"
+                      : "bg-white border border-green-200 text-gray-800 rounded-bl-md"
+                  }`}>
+                    {/* Bot label */}
+                    {isBot && (
+                      <div className="flex items-center space-x-1 mb-2 pb-2 border-b border-purple-100">
+                        <Bot className="h-3 w-3 text-purple-600" />
+                        <span className="text-xs font-medium text-purple-700">Dil Se Listener</span>
+                        <Star className="h-3 w-3 text-yellow-500" />
+                      </div>
+                    )}
+                    
+                    {/* Message content */}
+                    <p className="text-sm leading-relaxed whitespace-pre-line break-words">
+                      {msg.content}
                     </p>
-                  )}
-                  <p className="text-sm leading-relaxed whitespace-pre-line break-words">
-                    {msg.content}
-                  </p>
-                  {isUser && msg.seen && (
-                    <p className="text-xs text-right text-gray-200 mt-1">
-                      Seen ✅
-                    </p>
-                  )}
+                    
+                    {/* Message footer */}
+                    <div className={`flex items-center justify-between mt-2 pt-1 text-xs ${
+                      isUser ? "text-purple-100" : "text-gray-400"
+                    }`}>
+                      <span>{formatTime(msg.created_at)}</span>
+                      {isUser && (
+                        <div className="flex items-center space-x-1">
+                          {msg.seen ? (
+                            <>
+                              <CheckCheck className="h-3 w-3" />
+                              <span>Seen</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="h-3 w-3" />
+                              <span>Sent</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             );
           })
         )}
 
+        {/* Typing indicator */}
         {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-purple-100 text-purple-800 p-4 rounded-xl rounded-tl-sm shadow max-w-[75%]">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-                <div
-                  className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.2s" }}
-                ></div>
-                <div
-                  className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.4s" }}
-                ></div>
+          <div className="flex justify-start mb-3">
+            <div className="mr-12 max-w-xs">
+              <div className="bg-white border border-purple-200 px-4 py-3 rounded-2xl rounded-bl-md shadow-sm">
+                <div className="flex items-center space-x-1 mb-2 pb-2 border-b border-purple-100">
+                  <Bot className="h-3 w-3 text-purple-600" />
+                  <span className="text-xs font-medium text-purple-700">Typing...</span>
+                </div>
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                </div>
               </div>
             </div>
           </div>
@@ -257,26 +354,57 @@ const UserDashboardContent = () => {
         <div ref={messageEndRef} />
       </div>
 
-      <div className="p-4 border-t border-gray-300 bg-white shadow-inner flex gap-2">
-        <input
-          type="text"
-          placeholder="Wanna share something... 😊"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-          className="flex-1 p-3 border border-gray-300 rounded-full shadow-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
-        <button
-          onClick={handleSendMessage}
-          disabled={!newMessage.trim() || isSending}
-          className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
-            isSending
-              ? "bg-blue-300 cursor-wait"
-              : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
-          }`}
-        >
-          {isSending ? "Sending..." : "Send 🚀"}
-        </button>
+      {/* Input Area */}
+      <div className="relative z-10 px-4 py-4 bg-white/70 backdrop-blur-sm border-t border-purple-100">
+        <div className="flex items-center space-x-3">
+          <div className="flex-1 relative">
+            <Input
+              type="text"
+              placeholder="Share what's in your heart... 💭"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+              className="pr-10 py-3 border-2 border-purple-200 rounded-full bg-white/80 focus:border-purple-400 focus:ring-purple-400 placeholder:text-gray-400"
+              disabled={isSending}
+            />
+            <Smile className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          </div>
+          
+          <Button
+            onClick={handleSendMessage}
+            disabled={!newMessage.trim() || isSending}
+            size="sm"
+            className={`px-4 py-3 rounded-full transition-all duration-200 ${
+              isSending
+                ? "bg-gray-300 cursor-wait"
+                : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-md hover:shadow-lg"
+            }`}
+          >
+            {isSending ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+        
+        {/* Footer indicators */}
+        <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-400">
+          <div className="flex items-center space-x-1">
+            <Heart className="h-3 w-3 text-pink-400" />
+            <span>Safe</span>
+          </div>
+          <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+          <div className="flex items-center space-x-1">
+            <Moon className="h-3 w-3 text-purple-400" />
+            <span>Anonymous</span>
+          </div>
+          <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+          <div className="flex items-center space-x-1">
+            <Sparkles className="h-3 w-3 text-indigo-400" />
+            <span>Judgment-free</span>
+          </div>
+        </div>
       </div>
     </div>
   );
