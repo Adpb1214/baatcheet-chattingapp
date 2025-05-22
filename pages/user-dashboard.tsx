@@ -11,14 +11,12 @@ import {
   Send, 
   Sparkles, 
   Bot, 
-  User, 
   Check, 
   CheckCheck,
   Smile,
   Moon,
   Star,
-  Zap,
-  ArrowDown
+
 } from "lucide-react";
 
 interface Message {
@@ -264,7 +262,7 @@ const UserDashboardContent = () => {
             </div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">Welcome to your safe space</h3>
             <p className="text-gray-500 text-sm mb-4 max-w-sm">
-              Share what's on your mind. We're here to listen without judgment 💫
+              Share what&apos;s on your mind. We&apos;re here to listen without judgment 💫
             </p>
             <div className="flex space-x-2">
               {['🌸', '💭', '✨'].map((emoji, i) => (
@@ -275,7 +273,7 @@ const UserDashboardContent = () => {
             </div>
           </div>
         ) : (
-          messages.map((msg, index) => {
+          messages.map((msg) => {
             const isUser = msg.sender_id === userId;
             const isBot = msg.sender_id === "f5edd70b-3cab-4214-8bd1-ed0c6bb95126" || msg.sender_id === "chatbot";
 
